@@ -42,10 +42,18 @@ This means, GPU needs to communicate with eachother using PCIe 64 GB/s, which is
 
 
 ## When to Use MIG vs When Not To
-When you are running AI training load it is not recommended to use MIG.Because in Training, GPUs needs to communicate with each other. 
-THe following use case it is strongly recommended to use MIG
-- Workloads especially inference workload based on the GPU memory requirement, you can slice the GPU.
-- 
-- Finally when you are fine tunning existing model, when GPU requirements are lean
 
-In dev and test environment where environment is shared and no strict SLA, it is very good use case for time slicing and not MIG
+Do not use MIG when running multi-GPU AI training. Training jobs require
+GPUs to communicate via NVLink during allreduce. MIG disables NVLink,
+forcing fallback to PCIe at 64 GB/s — significantly degrading throughput.
+
+Use MIG when:
+- Running inference workloads — models are independent, no cross-GPU
+  communication needed. Slice to match model memory requirements.
+- Running single-GPU fine-tuning — lean GPU requirements, no NVLink needed.
+- Multi-tenant production environments with strict SLA — silicon-level
+  isolation guarantees one tenant cannot impact another.
+
+Use time-slicing instead of MIG when:
+- Dev/test environments with shared access and no SLA requirements —
+  simpler configuration, maximises GPU utilisation without partitioning.
