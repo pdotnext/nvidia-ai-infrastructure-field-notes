@@ -16,11 +16,11 @@ This CI instances shared the memory from GI.
 
 ## H100 80GB Profile Table
 
-1g.10gb - Slice with 10gb
-2g.20gb - Slice with 20gb
-3g.40gb - Slice with 40gb
-4g.40gb - Slice with 40gb
-7g.80gb - Slice with 80gb
+- 1g.10gb - Slice with 10gb
+- 2g.20gb - Slice with 20gb
+- 3g.40gb - Slice with 40gb
+- 4g.40gb - Slice with 40gb
+- 7g.80gb - Slice with 80gb
 
 ## The Two-Constraint Rule
 There are two rule which applies to creating slice
