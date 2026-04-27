@@ -100,3 +100,48 @@ oc get pods -n nvidia-gpu-operator -o yaml | grep -i privileged
 When customer ask the readiness of OpenShift environment for deploying gpu-operator, i would check the OpenShift version, SCC privilege mode can be applied to the gpu-operator's service account, as some organization will have strict policy to permit SCC privilege mode. This should be clarified before deployment begins.
 
 Everytime during conversation comes around air-gapped environment, faster driver update and ensure compliance and stability of the environment, DTK is the right place to introduce the topic.
+
+
+Having a organization like you with no privileged SCC by default is best security approach.
+And I totally understand. But in case of GPU-Operator, which is in OpenShift directly shipped by Nvidia in Operator Hub needs privilege mode
+for the following reasons
+
+- load NVIDIA driver
+- mount device file under /dev/nvidia*
+- hostpath access to /etc/crio/crio.conf.d and writing hooks /etc/containers/hooks.d
+
+There are total 5 daemonsets but not all need privilege mode e.g.
+- NVIDIA driver
+- container toolkit
+- device plugin (just to mount /dev/nvidia*)
+- DCGM
+- Feature discovery does not any privilege mode but needs elevated permissions to read /dev/nvidia*
+
+
+## Handling the Privileged SCC Objection — Customer Conversation
+_When a DACH customer asks whether GPU Operator works in their OpenShift environment, first confirm their OpenShift version, then confirm privileged SCC can be granted to the GPU Operator service account. Some regulated industries restrict privileged SCC by policy — this must be resolved before deployment begins_
+
+**My Approach**
+Having a organization like you with no privileged SCC by default is best security approach.
+And I totally understand. But in case of GPU-Operator, which is in OpenShift directly shipped by Nvidia in Operator Hub needs privilege mode
+for the following reasons
+
+- load NVIDIA driver
+- mount device file under /dev/nvidia*
+- hostpath access to /etc/crio/crio.conf.d and writing hooks /etc/containers/hooks.d
+
+There are total 5 daemonsets but not all need privilege mode e.g.
+- NVIDIA driver
+- container toolkit
+- device plugin (just to mount /dev/nvidia*)
+- DCGM
+- Feature discovery does not any privilege mode but needs elevated permissions to read /dev/nvidia*
+
+Since the gpu-operator is subscribed from the OperatorHub, package integrity provided by Nvidia is guaranteed.
+Also, gpu-operator creates its own service account, we can monitoring them using their names and changes to them.
+If required, i can provide relevant documents and links for further reference esp how can one strictly monitor
+Pods with SCC applied and what are other customer achieving this and detailed list of permissions required for Daemonsets.
+
+
+
+
