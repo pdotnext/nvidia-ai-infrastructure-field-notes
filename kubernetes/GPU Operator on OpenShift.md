@@ -46,6 +46,16 @@ OpenShift uses CRI-O as has runtime, which is different than plan vanilla Kubern
 ### What Breaks If You Use the Wrong Path
 In later case, hooks information will be stored in `config.toml`, but  before container starts CRI-O must know where the hooks are written, in this case it won't find and container cannot start or won't find libraries, devices it needs to inject into container.
 
+## Which DaemonSets Need Privileged SCC
+
+| DaemonSet | SCC Required | Reason |
+|---|---|---|
+| NVIDIA Driver | Privileged | Loads nvidia.ko kernel module |
+| Container Toolkit | Privileged | Writes CRI-O hooks, /etc access |
+| Device Plugin | Elevated | Mounts /dev/nvidia* into containers |
+| DCGM | Elevated | GPU telemetry, perf counter access |
+| GFD | Restricted | Reads node info, no host access |
+
 ## Driver Toolkit (DTK) — Air-Gapped Deployment
 
 ### What DTK Solves
