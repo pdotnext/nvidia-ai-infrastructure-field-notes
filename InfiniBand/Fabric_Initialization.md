@@ -1,121 +1,193 @@
-- Cables attached
-- SM starts
-- Topology discovery using SMPs. SMPs using VL15 and QP0 where no flow control happens.
-  At this stage no LID is assigned, it use direct routed addressing.
-    SM sends Get Node Info and Get Port Info
-      Get Node Info - provides node type, no of ports, GUID and node description
-      Get Port Info - MTU, Width, Speed and VL Information
-    Production interpretation
-    - Which HCAs exists ?
-    - Which Switch exits ?. It uses switch has gateway and from this gateway it tries to reach another gateway. HCAs are than comparable to leaf where discovery stops
-    - Which ports are live ?
-      - What speed/width they are running
-      - What MTU they support
-      - What VLs are availabe ?
-    - How is everything connected ?
+# Fabric initialization
 
-- LID assignment
-    - HCA Port 1 --> LID 1
-    - HCA Port 2 --> LID 2
-    - Switch A Port 1 --> LID 3
-    - Switch B Port 1 --> LID 4
-  Problem: LIDs is not assigned
+Here we are consolidating what was learn from the previous week.
 
-  Cause:
-  - SM Issue
-  - Discovery Issue
-  - parition/config Issue
-  - fabric control plane issue
+## List the stages of InfiniBand fabric initialization
 
-- Path calculation
-  Min-Hop routing to calculate LFT which is uses fewest hop from the switch port to the destination port.
-  If the number of hops available are same, then port with lowest destination LIDs
+- Cabling which is operator initiated
+- SM is powered ON
+- Node discovery starts
+- LID is assigned
+- short path to the node is configured using min-hop
+- routing table is calculated and programmmed on switches
+- ports are configured
+- SL to VL mapping is populated
+- Activate ports using both physical and Logical state
+- Ready for production data traffic
 
-  e.g.
-  Destination LID 8 can be reached via
-  - Port 1: 2 hops
-  - Port 2: 2 hops
-  - Port 3: 4 hops
+Lets explore the main bullet points from the listed above
 
-  To decide among Port 1 and Port 2, it checks which port (1 or 2) has lowest destination LIDs assigned.
-  Port 2 has least destination LIDs assigned
+## Node Discovery
 
-Every time packet forward decisions needs to be done, LFT is referred. SM job has already finished when LFT is calculated.
+Node discovery is where control plane comes into play.
+Subnet Management Packet (SMP) we learned earlier is send by SM using VL15 and QP0
+Both VL15 and QP0 is reserved for SMP and has not flow control mechnanism, as they
+are emergency lane and must be always free.
 
-- Switch forwarding table (LFT) programming into switches
-Already learnt, here is one more time
-Packet arrives at switch. Switch checks LRH for destination LID
-Destination LID is then checked by the switch in LFT which has destination port assigned
-e.g. from above LID 8 will exit via Port 2
+As Node still does not have LID assigned, SM uses directed routing addresses.
+It is as simple as hopping to each port. Once switch is discovered, it treats it as gateway
+to find another gateway i.e. switch. It continues discovery further till it finds HCAs which are leaf, where discovery stops
 
-ibroute can help you find what is programmed into switch.
-ibswitches - what switches exist and what LIDs do they have
+During the discovery at high level following takes places
+- Which HCA exists
+- Which switch exists
+- Which ports are alive
+- What is MTU configured
+- What is Lane Speed and Lane Width
+- How are these devices connected.
+
+It also runs get Node Info and Get Port Info
+Node Info - provides node type info, no of ports, GUIDs per port and description of node
+Port Info - Lane Width, Lane Speed and MTU
+
+Now we have all details, LIDs assigning is easier.
+
+## LID Assignment and min-hop
+LIDs are assigned to all nodes as discussed earlier
+
+- HCA each port
+- Single IC switch
+- Modular Chassis IC, 1 per IC
+
+Do not confuse System GUID. This is purely for Chassis identification.
+
+Now once LID is assigned, SM checks how these nodes are reachable with minimum number of hops
+It does this using min-hop alogorithm.
+e.g. Minimum number of hops from the switch port to destination LID
+
+Sometime it happens that destination LID is reachable from
+the same number of hops from
+more than one switch exit port.
+In this case (which is called as tie-breaker)
+switch chooses the one which has minimum number
+of destination LIDs assigned.
+
+e.g.
+
+Switch Port 1 --> LID 1
+Switch Port 2 --> LID 2
+Switch Port 3 -->
+
+LID 3 is reachable from both Switch Port 1 and Port 2
+with same number of hops, then it will assign as follows
+
+Switch Port 1 --> LID 1
+Switch Port 2 --> LID 2
+Switch Port 3 --> LID 3
+
+## Linear Forwarding Table (LFT)
+Now SM is ready to calculate LFT and program them
+on all Switches.
+As learned here is the flow one more time
+
+- packet arrives at switch
+- switch checks in LRH the  Destination LID
+- switch checks LFT for destination LID for switch to choose the exit port for destination LID
 
 
-- Port configuration
+## Port configuration
 
-Apart from LIDs, SM also configures
-  - MTU
-  - Lane Width
-  - Lane Speed
+SM not only assigns LIDs but also checks
+- MTU
+- Lane Width and Speed
 
-e.g. NDR has 4 lane width x 100 lane speed = 400 Gbps
-
-Troubleshooting example
-
-Expected: NDR 4 x 100 Gbps
-Actual: 1x
-Impact: Lower Bandwidth
-
-Expected: MTU 4096
-Actual: MTU Mismatch
-Impact: Degraded performance
-
-Expected: Active
-Actual: Polling
-Impact: No data traffic possible
+If either of these parameters are not matching,
+performance drop e.g. MTU mismatch, Link Speed is less e.g. 400 Gbps for NDR link
 
 
+## SL to VL mapping
+As we learned Service Level and Virtual Lane table is created by SM
+and controlled by HCA. When the packet arrives at Port, SL to VL table is checked
+and right lane is assigned and based on the weight,
+arbitrator schedules the packet on the lane
 
-- SL to VL configuration table
+here is the flow with SL and VL in picture
 
-packet arrives --> Switch Read LID --> looks in LFT Table for destination LID and port --> check SL to VL Mapping for the output port
---> Packet is placed into the selected VL --> Arbitrator decides which VL queue gets served next
+- packet arrives at switch
+- switch checks in LRH the  Destination LID
+- switch checks LFT for destination LID for switch to choose the exit port for destination LID
+- SL to VL map is checked, VL is assigned
+- arbitrator checks weight and schedule the frequency of packet
 
-SL = type of vehicle / service class
-VL = physical queue/lane at the intersection
-VL weight = how much green-light time that lane gets
-Arbiter = traffic light controller
+Simple traffic analogy
 
-Physical State
-Already learned they are
-- LinkUp
-- Link Error Recovery
+- SL is car
+- VL is a line of the Highway
+- Weight is how many times traffic signal becomes green for specific Lane
+- Arbitrator is traffic inspector
+
+## State checking
+
+We already learned the following physical states
+
 - Polling
-- Port Configuration Training
+- Training
+- LinkUp
 
-Logical State
-- down --> physical layer not up
-- init --> Physical link up but only SM/control traffic allowed
-- Armed --> configuration completed, validation pending
-- Active --> usable for data traffic
+But this only means physically link is ready, but if it can send data, is decided by the
+combination of both physical and logical state
 
+The logical states are
 
-Physical state flow ---down --> polling --> training --> LinkUp
-Logical state flow --down --> Init --> Armed --> Active
+- init : only SMP/control plane traffic is allowed
+- armed: configuration ready, pending verification
+- Active: ready for production
 
-Armed State: It is special state where SM
-sends a synthetic data packet through the link with a VCRC.
-VCRC allows end to end integrity between two ports.
+Both these states goes hand in hand
 
+Physical state: Polling --> Training --> LinkUp
+Logical state: init --> armed --> Active
 
-- Fabric becomes visible for data
+Armed state is special state where SM sends synthetic packet between two nodes
+This synthetic packet has VCRC included. Because with VCRC we can only check
+integrity between two ends of the nodes. For end to end integrity we use ICRC.
+ICRC is not needed in this case.
 
+At this stage, fabric is ready for production traffic but this is just first step
+as HPL Burn in test which is hardware burn test must be followed for end to end checks
 
-Node is powered on
-Cable is attached, link is established
-SM Discovers Node and assign LIDs
-SM calculates and programmes LFTs
-SM activates Subnets
+The troubleshooting flow looks like
+
+- check physical state (expected is: LinkUp)
+- check logical state (expected is: Active)
+- check if LID is assigned
+- check switches are visible using ibswitches
+- check LFT is properly populated using ibroute switch-lid
+- check VL
+
+## Understanding in a Single Diagram
+
+```shell
+
+                 ┌────────────────────┐
+                 │   Subnet Manager   │
+                 │  Control Plane     │
+                 └─────────┬──────────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        │                  │                  │
+        ▼                  ▼                  ▼
+ Discover topology   Assign LIDs       Calculate paths
+ via SMP / VL15      local addresses   min-hop / policy
+        │                  │                  │
+        └──────────────────┼──────────────────┘
+                           ▼
+                  Program switch LFTs
+                  Destination LID → Port
+                           │
+                           ▼
+                  Configure ports/QoS
+                  MTU, width, speed,
+                  SL-to-VL mapping
+                           │
+                           ▼
+                  Activate ports
+                  Physical LinkUp +
+                  Logical Active
+                           │
+                           ▼
+                  Data traffic works
+
+```
 
 
