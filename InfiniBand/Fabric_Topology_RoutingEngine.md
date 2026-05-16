@@ -201,7 +201,7 @@ Leaf -D - Port 2  --> Spine -B --> LID11
 
 Since Fat-Tree is aware that it can reach LID 11 from different ports and spine, It has freedom and choose wisely to spread the load. But it is static and not dynamic like AR. This LFT calculation is done by SM during initialization and during Topology change.
 
-## Topology selection creitiera
+## Topology selection critiera
 
 * Check what the workload characteristics are
   * AI, HPC, Mixed, Inference
