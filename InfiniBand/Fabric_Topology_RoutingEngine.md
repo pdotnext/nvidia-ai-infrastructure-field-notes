@@ -44,12 +44,12 @@ Oversubscription Ratio = downlink bandwidth / uplink bandwidth
 
 Here, downlink bandwidth = bandwidth x number of links divided by uplink bandwidth x number of uplinks
 When the downlinks and uplinks are the same, then the oversubscription ratio is 1
-i.e., 1:1 in Fat tree, and also referred to as non-blocking.
+i.e., 1:1 in Fat tree, and also referred to as non-blocking fabric.
 
 Think of this water flowing from smaller pipes into fat pipes. So, as the water flows,
 There are no blocks; rather, bigger pipes make it easier to make water flow.
 
-But, the blocking is exactly opposite, i.e., water moves from the fat pipes into the smaller pipes.
+But, the blocking fabric is exactly opposite, i.e., water moves from the fat pipes into the smaller pipes.
 There might be some blocking, i.e., less throughput.
 
 Server workload or non-AI workload is always designed with an oversubscription ratio, i.e., 2:1 or more.
@@ -86,7 +86,7 @@ When to use
 
 ---
 
-## Tours 3D
+## Torus 3D
 
 This routing topology is not used in AI Training/HPC, hence I’m keeping it very brief
 Each node is connected to six neighbours. It ends up in 6:1 subscription ratio.
