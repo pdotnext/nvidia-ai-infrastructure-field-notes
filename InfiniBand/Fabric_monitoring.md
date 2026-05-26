@@ -10,7 +10,6 @@ solution. This is the major consideration for production.
 These notes reflects my understanding.
 
 ## Impact of Master SM unavailability
-
 Before i discuss the main topic, let me
 explain what is planned and unplanned failure
 
@@ -35,6 +34,13 @@ Even though unavailability of SM may not be seen as production event, it is visi
 of the reason mentioned above, if the SM remains unavailable for long time,
 even AI job may stop which is the primary reason to have minimum two SM nodes in any production fabric.
 
+| What survives failover |  what's disrupted during failover |
+| - | - |
+| Existing QP connection | New QP setups (SM needs path resolution to new SM) |
+| In-flight RDMA traffic (data plane unaffected) | SM queries pause briefly |
+| PKey memberships (persisted config)  |  Multicast group join/leave (MCMembers) |
+| Existing Multicast forwarding | New node join (needs full discovery) |
+| Active routes | Topology change response delayed by failover window |
 
 ## Master SM election
 This topic has lot of similarities with vSphere HA
@@ -111,6 +117,37 @@ Slave SM (priority 13) takes over the role. Now Slave SM is Master SM, but with 
 its priority is elevated to 15. After sometime, Master SM is back online.
 But since new Master SM has higher priority (15) than old Master SM (14), role change does not happen
 
+## Tradeoff on where SM should run?
+
+SM can run on switch in embedded mode or it can run on
+dedicated hardware. Lets discuss what is the trade off
+
+### Embedded
+
+Pros:
+- simplified Lifecycle management
+  - drivers, firmware tested and verified by vendor
+  - patched as part of switch lifecycle management
+
+Cons:
+  - Switch gets two role to play, switch down, SM node increasing operational complexities
+  - Limited scalability (max 680 nodes), in terms Compute/memory on switch's ASCI
+
+### Host-based SM
+Deployed on dedicated hardware with opensm as service
+
+Pros:
+  - can be sized based on the requirement, and can scaled accordingly
+  - better logging and monitoring
+  - separate failure domain
+  - some advanced routing engine demands dedicated host
+
+Cons:
+  - additional host to manage i.e. lifecycle management (patching, maintenance, update)
+  - placement decision e.g. closed to Switch with reliable connection
+
+
+
 
 ## Information Syncing and Sweeping
 
@@ -144,8 +181,11 @@ But all nodes are spread across leaf, so this is still limited production impact
 So this bit of design consideration esp if you have rail optimized network, then this limited production impact can be greater than thought about.
 
 In short
-- Light sweep is check mode
-- heavy sweep can lead to rediscover/Recalculation/Reprogramming
+1. Sweep (active)
+  - Light sweep is check mode, cheap
+  - heavy sweep can lead to rediscover/Recalculation/Reprogramming, and hence expensive
+
+
 
 ### Commands to check light sweep and heavy sweep
 
@@ -162,14 +202,16 @@ disable
 
 ```
 
-
 ## Target Topology change handling
-
 As discussed above if single node is unreachable, SM should trigger a fabric reinitialization.
-It is control-plane heavy operation esp when one node is unavailable
+It is control-plane heavy operation esp. when one node is unavailable
 Hence you can change this behaviour because by default if node send a InfiniBand trap
 it will trigger heavy sweep. Just to repeat/add, this trap is basically send by Node (SMA) via MADs
 learned earlier to SM.
+
+TRAP is reactive, while sweep is proactive.
+TRAP is something SM continuously watch for, does happen frequently as light sweep.
+Sweeps are scheduled, trap are interrupts.
 
 ### Commands to change trap behavior
 
@@ -196,8 +238,9 @@ IP of all servers. This is huge operational risk.
 In InfiniBand, SM can re-use existing SMs using two method
 
 First during discovery, SM creates a GUID <-> LID table
-for all ports in the fabric and this is cached. This table
-can be reused by new SM assuming it is present, valid and
+for all ports in the fabric and this is cached.
+Purpose of this table is to persist LID assignment when SM reboots or failover happens.
+This table is reused by new SM assuming it is present, valid and
 no re-assign setting is enabled.
 
 Second, LID is also cached by each node, SM can request this from each

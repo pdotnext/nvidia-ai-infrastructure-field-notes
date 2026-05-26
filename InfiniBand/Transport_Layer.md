@@ -1,6 +1,6 @@
 # InfiniBand - Transport Layer
 
-Transport Layer is the most important layer among other layers
+Transport Layer is the most important layer among other layers.
 This layer allows end to end communication of application which bypasses CPU completely ( it also referred as zero copy)
 It is done by establishing virtual lanes among both the applications address space.
 
@@ -34,7 +34,7 @@ Reliable Connected are mostly used for the following reasons
 - Integrity and Ordering is achieved using Packet Sequence Number
   - PSN tracks the packet order, which ensures there there is no duplication, packet loss or missing piece
   - PSN also uses counter (in plain englich timeout). when the timeout is reached and ACK does not come, it retransmits
-  - PSN works on ACK and NACK. NACK relead to retransmission. Retransmission here might be fault in fabric esp in cable, dirty fiber
+  - PSN works on ACK and NACK. NACK leads to retransmission. Retransmission here might be fault in fabric esp in cable, dirty fiber
 
 Opposite is Unreliable Datagram
 
@@ -57,9 +57,10 @@ Channel semantics has following important characteristic
 - receiver sends in advance called pre-post buffer
 - Why we need it
   - infrequent communication with smaller data size
-  - control plane communication
-  - Connection setup
-  - in case receiver has idea data is coming, but not much information is available
+  - control plane communication - SM to SMA communication using unreliable datagram on VL15
+  - storage protocol commands - where command header size differr, receiver decides where to place it
+  - Connection setup - where no data is shared earlier, like chicken and egg
+  - Where receiver has idea data is coming, but not much information is available
 
 Memory Semantics has following characteristics
 
@@ -84,11 +85,10 @@ As learned earlier, Partition ensures isolation, security a requirement for mult
 It is isolation of data within a subnet.
 Partition key concept was discussed earlier, now we go one level deep here
 - partition key is 16 bit in value and it part of data packet
-- default partition key is always present and has value 0x7FFF, you cannot modify or delete this P_KEY and every port is full remember of this partition
+- default partition key is always present and has value 0x7FFF, you cannot modify or delete this P_KEY and every port is full member of this partition
 - The left most bit of the p_key indicates if it is full or limited membership e.g. 1= Full and 0 = limited.
 
 Partition defines which nodes are allowed to communicate with each other.
-
 Partition keys are created by SM and assigned to each port. From here on, HCA ensures nodes communicate only based on the P_KEY
 
 Next important concept in partition is Membership. There are two types of membership
